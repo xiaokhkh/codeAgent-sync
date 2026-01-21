@@ -30,11 +30,11 @@ const HEARTBEAT_MS = 15_000;
 const stateDir = path.join(os.homedir(), ".companion");
 
 function printUsage(): void {
-  console.log(`companion --backend <url> --agent-name <name> --codex-cmd <cmd> [--token <token>]
+  console.log(`sync-agent [--backend <url>] [--agent-name <name>] [--codex-cmd <cmd>] [--token <token>]
 
 Options:
-  --backend       Backend base URL, e.g. http://localhost:8787
-  --agent-name    Agent name to register/use
+  --backend       Backend base URL (default: http://localhost:8787)
+  --agent-name    Agent name to register/use (default: resume/session id or hostname)
   --codex-cmd     Codex command (default: codex)
   --token         Bearer token for backend
 
@@ -44,6 +44,32 @@ Environment defaults:
   COMPANION_CODEX_CMD
   COMPANION_TOKEN
 `);
+}
+
+function deriveAgentNameFromArgs(args: string[]): string | null {
+  const flags = new Map<string, string>([
+    ["--resume", "resume"],
+    ["-r", "resume"],
+    ["--resume-id", "resume"],
+    ["--session", "session"],
+    ["--session-id", "session"]
+  ]);
+
+  for (let i = 0; i < args.length; i += 1) {
+    const arg = args[i];
+    const inlineMatch = arg.match(/^(--resume|--resume-id|--session|--session-id)=(.+)$/);
+    if (inlineMatch?.[2]) {
+      return inlineMatch[2];
+    }
+    if (!flags.has(arg)) {
+      continue;
+    }
+    const value = args[i + 1];
+    if (value && !value.startsWith("-")) {
+      return value;
+    }
+  }
+  return null;
 }
 
 function splitCommand(input: string): { cmd: string; args: string[] } {
@@ -98,17 +124,19 @@ function parseConfig(): Config {
     process.exit(0);
   }
 
-  const backend = values.backend ?? process.env.COMPANION_BACKEND;
-  const agentName = values["agent-name"] ?? process.env.COMPANION_AGENT_NAME;
-  if (!backend || !agentName) {
-    printUsage();
-    process.exit(1);
-  }
+  const backend = values.backend ?? process.env.COMPANION_BACKEND ?? "http://localhost:8787";
+  const codexCmd = values["codex-cmd"] ?? process.env.COMPANION_CODEX_CMD ?? "codex";
+  const { args } = splitCommand(codexCmd);
+  const inferredAgent =
+    values["agent-name"] ??
+    process.env.COMPANION_AGENT_NAME ??
+    deriveAgentNameFromArgs(args) ??
+    os.hostname();
 
   return {
     backend,
-    agentName,
-    codexCmd: values["codex-cmd"] ?? process.env.COMPANION_CODEX_CMD ?? "codex",
+    agentName: inferredAgent,
+    codexCmd,
     token: values.token ?? process.env.COMPANION_TOKEN
   };
 }

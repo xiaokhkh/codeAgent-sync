@@ -50,9 +50,14 @@ COMPANION_AGENT_NAME=mac-mini-1 \
 pnpm dev:pc
 ```
 
+Notes:
+
+- `--backend` defaults to `http://localhost:8787`.
+- `--agent-name` defaults to the Codex resume/session id from `--codex-cmd` if present, otherwise the host name.
+
 4) (Optional) Link global CLI:
 
 ```bash
 pnpm link:pc
-companion --backend http://localhost:8787 --agent-name mac-mini-1 --codex-cmd "codex"
+sync-agent --backend http://localhost:8787 --agent-name mac-mini-1 --codex-cmd "codex"
 ```

@@ -8,7 +8,7 @@
     "node": ">=22"
   },
   "bin": {
-    "companion": "dist/index.js"
+    "sync-agent": "dist/index.js"
   },
   "scripts": {
     "dev": "tsx src/index.ts",
