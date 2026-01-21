@@ -7,6 +7,7 @@
     "dev:pc": "pnpm --filter @codeagent/pc-companion dev --",
     "build:backend": "pnpm --filter @codeagent/companion-backend build",
     "build:pc": "pnpm --filter @codeagent/pc-companion build",
+    "ags": "pnpm build:pc && node apps/pc-companion/dist/index.js",
     "link:pc": "pnpm --filter @codeagent/pc-companion build && pnpm -C apps/pc-companion link",
     "unlink:pc": "pnpm -C apps/pc-companion unlink"
   },

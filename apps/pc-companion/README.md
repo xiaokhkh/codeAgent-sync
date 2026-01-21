@@ -38,7 +38,7 @@ Defaults:
 - `--agent-name` defaults to the Codex resume/session id from `--codex-cmd` if present.
 - If no resume/session id is passed, it scans `~/.codex/sessions` for the newest session id after startup.
 - When no session id is found, it falls back to the host name.
-- Use `--token` or `COMPANION_TOKEN` if backend auth is enabled.
+- `--token` defaults to `dev-token`; override with `COMPANION_TOKEN` when needed.
 - Use `--cwd` if you want to launch Codex inside a specific repo.
 - By default, `--skip-git-repo-check` is enabled; use `--require-git-repo` to enforce it.
 

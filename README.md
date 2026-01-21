@@ -57,7 +57,7 @@ Notes:
 - If no resume/session id is passed, it scans `~/.codex/sessions` for the newest session id after startup.
 - When no session id is found, it falls back to the host name.
 - Set `COMPANION_CODEX_HOME` to override the `~/.codex` location.
-- If backend auth is enabled, pass `--token` or set `COMPANION_TOKEN`.
+- `--token` defaults to `dev-token`; override with `COMPANION_TOKEN` when needed.
 - `--skip-git-repo-check` is enabled by default; use `--require-git-repo` to enforce repo checks.
 - Use `--cwd` to launch Codex inside a specific repo.
 
@@ -67,4 +67,10 @@ Notes:
 pnpm link:pc
 agent-sync --backend http://localhost:8787 --agent-name mac-mini-1 --codex-cmd "codex"
 ags --backend http://localhost:8787 --agent-name mac-mini-1 --codex-cmd "codex"
+```
+
+Or run from the repo with defaults:
+
+```bash
+pnpm ags
 ```

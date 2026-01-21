@@ -174,7 +174,7 @@ function parseConfig(): Config {
   return {
     backend,
     codexCmd,
-    token: values.token ?? process.env.COMPANION_TOKEN,
+    token: values.token ?? process.env.COMPANION_TOKEN ?? "dev-token",
     agentNameOverride: agentNameOverride ? agentNameOverride.trim() : undefined,
     codexHome,
     codexCwd,
