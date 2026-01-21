@@ -17,6 +17,15 @@ pnpm --filter @codeagent/pc-companion dev -- \
   --token $COMPANION_TOKEN
 ```
 
+Or use env defaults:
+
+```bash
+cp .env.example .env
+COMPANION_BACKEND=http://localhost:8787 \
+COMPANION_AGENT_NAME=mac-mini-1 \
+pnpm --filter @codeagent/pc-companion dev
+```
+
 Build + run:
 
 ```bash

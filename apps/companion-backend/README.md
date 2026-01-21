@@ -14,6 +14,10 @@ Minimal Hono + PostgreSQL + WebSocket backend for Codex Companion.
 - `PUBLIC_BASE_URL` (optional, for `ws_url` in register response; default `http://localhost:${PORT}`)
 - `PORT` (optional, default 8787)
 
+```bash
+cp .env.example .env
+```
+
 ## Migrations
 
 This repo ships SQL migrations compatible with dbmate.

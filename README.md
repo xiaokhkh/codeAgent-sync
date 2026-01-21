@@ -10,17 +10,42 @@ Minimal MVP for PC Codex Companion ↔ Backend ↔ iOS.
 
 ## Quick Start
 
-1) Run backend:
+1) Backend setup:
+
+- Ensure PostgreSQL is running and create a database.
+- Copy the env file and set `DATABASE_URL`.
+
+```bash
+cp apps/companion-backend/.env.example apps/companion-backend/.env
+```
+
+- Run migrations (dbmate example):
+
+```bash
+cd apps/companion-backend
+DBMATE_MIGRATIONS_DIR=db/migrations dbmate up
+```
+
+2) Run backend:
 
 ```bash
 pnpm --filter @codeagent/companion-backend dev
 ```
 
-2) Run companion:
+3) Run companion (flags or env):
 
 ```bash
 pnpm --filter @codeagent/pc-companion dev -- \
   --backend http://localhost:8787 \
   --agent-name mac-mini-1 \
   --codex-cmd "codex"
+```
+
+Or use env defaults:
+
+```bash
+cp apps/pc-companion/.env.example apps/pc-companion/.env
+COMPANION_BACKEND=http://localhost:8787 \
+COMPANION_AGENT_NAME=mac-mini-1 \
+pnpm --filter @codeagent/pc-companion dev
 ```

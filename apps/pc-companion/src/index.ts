@@ -37,6 +37,12 @@ Options:
   --agent-name    Agent name to register/use
   --codex-cmd     Codex command (default: codex)
   --token         Bearer token for backend
+
+Environment defaults:
+  COMPANION_BACKEND
+  COMPANION_AGENT_NAME
+  COMPANION_CODEX_CMD
+  COMPANION_TOKEN
 `);
 }
 
@@ -92,8 +98,8 @@ function parseConfig(): Config {
     process.exit(0);
   }
 
-  const backend = values.backend;
-  const agentName = values["agent-name"];
+  const backend = values.backend ?? process.env.COMPANION_BACKEND;
+  const agentName = values["agent-name"] ?? process.env.COMPANION_AGENT_NAME;
   if (!backend || !agentName) {
     printUsage();
     process.exit(1);
@@ -102,8 +108,8 @@ function parseConfig(): Config {
   return {
     backend,
     agentName,
-    codexCmd: values["codex-cmd"] ?? "codex",
-    token: values.token
+    codexCmd: values["codex-cmd"] ?? process.env.COMPANION_CODEX_CMD ?? "codex",
+    token: values.token ?? process.env.COMPANION_TOKEN
   };
 }
 
