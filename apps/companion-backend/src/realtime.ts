@@ -227,7 +227,7 @@ function startOfflineSweep(): void {
 
   setInterval(() => {
     void sweep().catch((err) => {
-      console.error(\"offline sweep failed\", err);
+      console.error("offline sweep failed", err);
     });
   }, OFFLINE_SWEEP_MS).unref();
 }

@@ -6,6 +6,7 @@ import process from "node:process";
 import { parseArgs } from "node:util";
 import WebSocket from "ws";
 import * as pty from "node-pty";
+import { spawn } from "node:child_process";
 
 type Config = {
   backend: string;
@@ -24,6 +25,13 @@ type EventRecord = {
   payload?: Record<string, unknown>;
 };
 
+type CodexHandle = {
+  write: (data: string) => void;
+  kill: () => void;
+  onData: (handler: (data: string) => void) => void;
+  onExit: (handler: (event: { exitCode: number; signal?: number | null }) => void) => void;
+};
+
 const OUTPUT_FLUSH_MS = 800;
 const OUTPUT_CHUNK_SIZE = 4000;
 const HEARTBEAT_MS = 15_000;
@@ -33,7 +41,7 @@ const SESSION_SCAN_INTERVAL_MS = 500;
 const stateDir = path.join(os.homedir(), ".companion");
 
 function printUsage(): void {
-  console.log(`sync-agent [--backend <url>] [--agent-name <name>] [--codex-cmd <cmd>] [--token <token>]
+  console.log(`agent-sync [--backend <url>] [--agent-name <name>] [--codex-cmd <cmd>] [--token <token>]
 
 Options:
   --backend       Backend base URL (default: http://localhost:8787)
@@ -276,7 +284,7 @@ async function main(): Promise<void> {
     }, 1000);
   };
 
-  let currentPty: pty.IPty | null = null;
+  let currentPty: CodexHandle | null = null;
   let buffer = "";
   let flushTimer: NodeJS.Timeout | null = null;
   let ws: WebSocket | null = null;
@@ -314,16 +322,46 @@ async function main(): Promise<void> {
       return;
     }
     try {
-      currentPty = pty.spawn(cmd, args, {
+      const ptyProcess = pty.spawn(cmd, args, {
         cols: process.stdout.columns ?? 120,
         rows: process.stdout.rows ?? 30,
         cwd: process.cwd(),
         env: process.env as Record<string, string>,
         name: "xterm-color"
       });
+      currentPty = {
+        write: (data) => ptyProcess.write(data),
+        kill: () => ptyProcess.kill(),
+        onData: (handler) => ptyProcess.onData(handler),
+        onExit: (handler) => ptyProcess.onExit(handler)
+      };
     } catch (err) {
-      console.error("failed to spawn codex", err);
-      process.exit(1);
+      console.error("failed to spawn codex with pty, falling back to stdio", err);
+      const child = spawn(cmd, args, {
+        cwd: process.cwd(),
+        env: process.env,
+        stdio: "pipe"
+      });
+      currentPty = {
+        write: (data) => {
+          if (!child.stdin) {
+            return;
+          }
+          child.stdin.write(data);
+        },
+        kill: () => {
+          child.kill();
+        },
+        onData: (handler) => {
+          child.stdout?.on("data", (data) => handler(data.toString()));
+          child.stderr?.on("data", (data) => handler(data.toString()));
+        },
+        onExit: (handler) => {
+          child.on("exit", (code, signal) => {
+            handler({ exitCode: code ?? 0, signal });
+          });
+        }
+      };
     }
 
     currentPty.onData((data) => {

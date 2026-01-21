@@ -39,18 +39,19 @@ Defaults:
 
 ## Global CLI (recommended)
 
-Build and link the CLI once, then run `sync-agent` anywhere:
+Build and link the CLI once, then run `agent-sync` (or `ags`) anywhere:
 
 ```bash
 pnpm --filter @codeagent/pc-companion build
-pnpm --filter @codeagent/pc-companion link --global
-sync-agent --backend http://localhost:8787 --agent-name mac-mini-1 --codex-cmd "codex"
+pnpm -C . link
+agent-sync --backend http://localhost:8787 --agent-name mac-mini-1 --codex-cmd "codex"
+ags --backend http://localhost:8787 --agent-name mac-mini-1 --codex-cmd "codex"
 ```
 
 Unlink:
 
 ```bash
-pnpm --filter @codeagent/pc-companion unlink --global
+pnpm -C . unlink
 ```
 
 Build + run:

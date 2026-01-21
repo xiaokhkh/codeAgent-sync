@@ -62,5 +62,6 @@ Notes:
 
 ```bash
 pnpm link:pc
-sync-agent --backend http://localhost:8787 --agent-name mac-mini-1 --codex-cmd "codex"
+agent-sync --backend http://localhost:8787 --agent-name mac-mini-1 --codex-cmd "codex"
+ags --backend http://localhost:8787 --agent-name mac-mini-1 --codex-cmd "codex"
 ```

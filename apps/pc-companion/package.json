@@ -8,11 +8,12 @@
     "node": ">=22"
   },
   "bin": {
-    "sync-agent": "dist/index.js"
+    "agent-sync": "dist/index.js",
+    "ags": "dist/index.js"
   },
   "scripts": {
     "dev": "tsx src/index.ts",
-    "build": "tsup src/index.ts --format esm --target node22 --out-dir dist --banner:js='#!/usr/bin/env node'",
+    "build": "tsup src/index.ts --format esm --target node22 --out-dir dist",
     "start": "node dist/index.js",
     "typecheck": "tsc --noEmit"
   },
