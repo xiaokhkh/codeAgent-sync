@@ -42,6 +42,7 @@ Defaults:
 - Use `--cwd` if you want to launch Codex inside a specific repo.
 - By default, `--skip-git-repo-check` is enabled; use `--require-git-repo` to enforce it.
 - `--codex-cmd` will auto-resolve `codex` from common PATH locations if needed.
+- If `node-pty` fails, the CLI will try `script` (PTY) fallback before stdio.
 
 ## Global CLI (recommended)
 

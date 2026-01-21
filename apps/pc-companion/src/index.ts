@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 import fs from "node:fs/promises";
+import * as fsSync from "node:fs";
 import { constants as fsConstants } from "node:fs";
 import os from "node:os";
 import path from "node:path";
@@ -140,6 +141,15 @@ function splitCommand(input: string): { cmd: string; args: string[] } {
 async function isExecutable(filePath: string): Promise<boolean> {
   try {
     await fs.access(filePath, fsConstants.X_OK);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+function isExecutableSync(filePath: string): boolean {
+  try {
+    fsSync.accessSync(filePath, fsConstants.X_OK);
     return true;
   } catch {
     return false;
@@ -334,6 +344,8 @@ async function main(): Promise<void> {
   if (resolvedCmd !== cmd) {
     console.log(`Using codex binary: ${resolvedCmd}`);
   }
+  const scriptCmd = await resolveExecutable("script");
+  const scriptAvailable = isExecutableSync(scriptCmd);
   if (config.skipGitRepoCheck && !args.includes("--skip-git-repo-check")) {
     args.push("--skip-git-repo-check");
   }
@@ -408,31 +420,41 @@ async function main(): Promise<void> {
         onExit: (handler) => ptyProcess.onExit(handler)
       };
     } catch (err) {
-      console.error("failed to spawn codex with pty, falling back to stdio", err);
-      if (path.basename(resolvedCmd).includes("codex")) {
-        console.error("codex requires a TTY; ensure node-pty can spawn or set --codex-cmd.");
+      console.error("failed to spawn codex with pty, trying script fallback", err);
+      let child: ReturnType<typeof spawn> | null = null;
+      if (scriptAvailable) {
+        child = spawn(scriptCmd, ["-q", "/dev/null", resolvedCmd, ...args], {
+          cwd: config.codexCwd,
+          env: process.env,
+          stdio: "pipe"
+        });
+      } else {
+        console.error("script command not available; falling back to stdio");
+        if (path.basename(resolvedCmd).includes("codex")) {
+          console.error("codex requires a TTY; ensure node-pty or script can spawn.");
+        }
+        child = spawn(resolvedCmd, args, {
+          cwd: config.codexCwd,
+          env: process.env,
+          stdio: "pipe"
+        });
       }
-      const child = spawn(resolvedCmd, args, {
-        cwd: config.codexCwd,
-        env: process.env,
-        stdio: "pipe"
-      });
       currentPty = {
         write: (data) => {
-          if (!child.stdin) {
+          if (!child?.stdin) {
             return;
           }
           child.stdin.write(data);
         },
         kill: () => {
-          child.kill();
+          child?.kill();
         },
         onData: (handler) => {
-          child.stdout?.on("data", (data) => handler(data.toString()));
-          child.stderr?.on("data", (data) => handler(data.toString()));
+          child?.stdout?.on("data", (data) => handler(data.toString()));
+          child?.stderr?.on("data", (data) => handler(data.toString()));
         },
         onExit: (handler) => {
-          child.on("exit", (code, signal) => {
+          child?.on("exit", (code, signal) => {
             handler({ exitCode: code ?? 0, signal });
           });
         }
