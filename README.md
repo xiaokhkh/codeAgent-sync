@@ -53,7 +53,10 @@ pnpm dev:pc
 Notes:
 
 - `--backend` defaults to `http://localhost:8787`.
-- `--agent-name` defaults to the Codex resume/session id from `--codex-cmd` if present, otherwise the host name.
+- `--agent-name` defaults to the Codex resume/session id from `--codex-cmd` if present.
+- If no resume/session id is passed, it scans `~/.codex/sessions` for the newest session id after startup.
+- When no session id is found, it falls back to the host name.
+- Set `COMPANION_CODEX_HOME` to override the `~/.codex` location.
 
 4) (Optional) Link global CLI:
 

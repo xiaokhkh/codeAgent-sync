@@ -9,9 +9,10 @@ import * as pty from "node-pty";
 
 type Config = {
   backend: string;
-  agentName: string;
+  agentNameOverride?: string;
   codexCmd: string;
   token?: string;
+  codexHome: string;
 };
 
 type EventRecord = {
@@ -26,6 +27,8 @@ type EventRecord = {
 const OUTPUT_FLUSH_MS = 800;
 const OUTPUT_CHUNK_SIZE = 4000;
 const HEARTBEAT_MS = 15_000;
+const SESSION_SCAN_TIMEOUT_MS = 10_000;
+const SESSION_SCAN_INTERVAL_MS = 500;
 
 const stateDir = path.join(os.homedir(), ".companion");
 
@@ -43,6 +46,7 @@ Environment defaults:
   COMPANION_AGENT_NAME
   COMPANION_CODEX_CMD
   COMPANION_TOKEN
+  COMPANION_CODEX_HOME (or CODEX_HOME)
 `);
 }
 
@@ -61,6 +65,12 @@ function deriveAgentNameFromArgs(args: string[]): string | null {
     if (inlineMatch?.[2]) {
       return inlineMatch[2];
     }
+    if (arg === "resume") {
+      const resumeId = args[i + 1];
+      if (resumeId && !resumeId.startsWith("-")) {
+        return resumeId;
+      }
+    }
     if (!flags.has(arg)) {
       continue;
     }
@@ -71,6 +81,9 @@ function deriveAgentNameFromArgs(args: string[]): string | null {
   }
   return null;
 }
+
+const SESSION_ID_REGEX =
+  /rollout-.*-([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12})\\.jsonl$/;
 
 function splitCommand(input: string): { cmd: string; args: string[] } {
   const parts: string[] = [];
@@ -126,30 +139,32 @@ function parseConfig(): Config {
 
   const backend = values.backend ?? process.env.COMPANION_BACKEND ?? "http://localhost:8787";
   const codexCmd = values["codex-cmd"] ?? process.env.COMPANION_CODEX_CMD ?? "codex";
-  const { args } = splitCommand(codexCmd);
-  const inferredAgent =
-    values["agent-name"] ??
-    process.env.COMPANION_AGENT_NAME ??
-    deriveAgentNameFromArgs(args) ??
-    os.hostname();
+  const agentNameOverride = values["agent-name"] ?? process.env.COMPANION_AGENT_NAME;
+  const codexHome =
+    process.env.COMPANION_CODEX_HOME ?? process.env.CODEX_HOME ?? path.join(os.homedir(), ".codex");
 
   return {
     backend,
-    agentName: inferredAgent,
     codexCmd,
-    token: values.token ?? process.env.COMPANION_TOKEN
+    token: values.token ?? process.env.COMPANION_TOKEN,
+    agentNameOverride: agentNameOverride ? agentNameOverride.trim() : undefined,
+    codexHome
   };
 }
 
-async function registerAgent(config: Config): Promise<{ agentId: string; wsUrl: string }> {
-  const url = new URL("/agents/register", config.backend).toString();
+async function registerAgent(params: {
+  backend: string;
+  token?: string;
+  agentName: string;
+}): Promise<{ agentId: string; wsUrl: string }> {
+  const url = new URL("/agents/register", params.backend).toString();
   const res = await fetch(url, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
-      ...(config.token ? { Authorization: `Bearer ${config.token}` } : {})
+      ...(params.token ? { Authorization: `Bearer ${params.token}` } : {})
     },
-    body: JSON.stringify({ name: config.agentName, platform: os.platform() })
+    body: JSON.stringify({ name: params.agentName, platform: os.platform() })
   });
 
   if (!res.ok) {
@@ -162,6 +177,63 @@ async function registerAgent(config: Config): Promise<{ agentId: string; wsUrl: 
     throw new Error("register response missing agent_id/ws_url");
   }
   return { agentId: data.agent_id, wsUrl: data.ws_url };
+}
+
+async function findLatestSessionId(root: string, minMtimeMs: number): Promise<string | null> {
+  let latest: { id: string; mtimeMs: number } | null = null;
+
+  const walk = async (dir: string): Promise<void> => {
+    let entries: Array<import("node:fs").Dirent>;
+    try {
+      entries = await fs.readdir(dir, { withFileTypes: true });
+    } catch (err) {
+      const code = (err as NodeJS.ErrnoException).code;
+      if (code === "ENOENT") {
+        return;
+      }
+      throw err;
+    }
+
+    for (const entry of entries) {
+      const fullPath = path.join(dir, entry.name);
+      if (entry.isDirectory()) {
+        await walk(fullPath);
+        continue;
+      }
+      if (!entry.isFile() || !entry.name.startsWith("rollout-") || !entry.name.endsWith(".jsonl")) {
+        continue;
+      }
+      const match = entry.name.match(SESSION_ID_REGEX);
+      if (!match?.[1]) {
+        continue;
+      }
+      const stat = await fs.stat(fullPath);
+      if (stat.mtimeMs < minMtimeMs) {
+        continue;
+      }
+      if (!latest || stat.mtimeMs > latest.mtimeMs) {
+        latest = { id: match[1], mtimeMs: stat.mtimeMs };
+      }
+    }
+  };
+
+  await walk(root);
+  return latest?.id ?? null;
+}
+
+async function waitForSessionId(
+  sessionsRoot: string,
+  startTimeMs: number
+): Promise<string | null> {
+  const deadline = Date.now() + SESSION_SCAN_TIMEOUT_MS;
+  while (Date.now() < deadline) {
+    const sessionId = await findLatestSessionId(sessionsRoot, startTimeMs - 2000);
+    if (sessionId) {
+      return sessionId;
+    }
+    await new Promise((resolve) => setTimeout(resolve, SESSION_SCAN_INTERVAL_MS));
+  }
+  return null;
 }
 
 async function loadLastSeq(agentId: string): Promise<number> {
@@ -186,8 +258,10 @@ async function main(): Promise<void> {
   const config = parseConfig();
   const { cmd, args } = splitCommand(config.codexCmd);
 
-  const { agentId, wsUrl } = await registerAgent(config);
-  let lastSeq = await loadLastSeq(agentId);
+  let agentName = config.agentNameOverride?.trim() ?? deriveAgentNameFromArgs(args);
+  let agentId = "";
+  let wsUrl = "";
+  let lastSeq = 0;
   let saveTimer: NodeJS.Timeout | null = null;
 
   const scheduleSave = () => {
@@ -208,6 +282,32 @@ async function main(): Promise<void> {
   let ws: WebSocket | null = null;
   let reconnectDelay = 1000;
   let shuttingDown = false;
+
+  const sendEvent = (event: { type: string; sender: string; payload: Record<string, unknown> }) => {
+    if (!ws || ws.readyState !== WebSocket.OPEN) {
+      return;
+    }
+    ws.send(JSON.stringify({ type: "event", event }));
+  };
+
+  const flushOutput = () => {
+    if (!buffer) {
+      return;
+    }
+    if (!ws || ws.readyState !== WebSocket.OPEN) {
+      return;
+    }
+    const payload = buffer;
+    buffer = "";
+    for (let i = 0; i < payload.length; i += OUTPUT_CHUNK_SIZE) {
+      const chunk = payload.slice(i, i + OUTPUT_CHUNK_SIZE);
+      sendEvent({
+        type: "message_out",
+        sender: "pc",
+        payload: { content: chunk }
+      });
+    }
+  };
 
   const spawnCodex = () => {
     if (currentPty) {
@@ -243,28 +343,26 @@ async function main(): Promise<void> {
     });
   };
 
-  const flushOutput = () => {
-    if (!buffer) {
-      return;
-    }
-    const payload = buffer;
-    buffer = "";
-    for (let i = 0; i < payload.length; i += OUTPUT_CHUNK_SIZE) {
-      const chunk = payload.slice(i, i + OUTPUT_CHUNK_SIZE);
-      sendEvent({
-        type: "message_out",
-        sender: "pc",
-        payload: { content: chunk }
-      });
-    }
-  };
+  spawnCodex();
 
-  const sendEvent = (event: { type: string; sender: string; payload: Record<string, unknown> }) => {
-    if (!ws || ws.readyState !== WebSocket.OPEN) {
-      return;
+  if (!agentName) {
+    const sessionsRoot = path.join(config.codexHome, "sessions");
+    try {
+      agentName = (await waitForSessionId(sessionsRoot, Date.now())) ?? os.hostname();
+    } catch (err) {
+      console.error("failed to detect session id", err);
+      agentName = os.hostname();
     }
-    ws.send(JSON.stringify({ type: "event", event }));
-  };
+  }
+
+  const registration = await registerAgent({
+    backend: config.backend,
+    token: config.token,
+    agentName
+  });
+  agentId = registration.agentId;
+  wsUrl = registration.wsUrl;
+  lastSeq = await loadLastSeq(agentId);
 
   const handleEvent = (event: EventRecord) => {
     if (typeof event.seq === "number" && event.seq > lastSeq) {
@@ -295,6 +393,7 @@ async function main(): Promise<void> {
     ws.on("open", () => {
       reconnectDelay = 1000;
       ws?.send(JSON.stringify({ type: "subscribe", since_seq: lastSeq }));
+      flushOutput();
     });
 
     ws.on("message", (raw) => {
@@ -386,7 +485,6 @@ async function main(): Promise<void> {
   process.on("SIGINT", shutdown);
   process.on("SIGTERM", shutdown);
 
-  spawnCodex();
   connectRealtime();
 }
 
