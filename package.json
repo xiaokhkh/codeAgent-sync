@@ -2,6 +2,12 @@
   "name": "codeagent-sync",
   "private": true,
   "description": "PC Codex Companion ↔ Backend ↔ iOS MVP",
+  "scripts": {
+    "dev:backend": "pnpm --filter @codeagent/companion-backend dev",
+    "dev:pc": "pnpm --filter @codeagent/pc-companion dev --",
+    "build:backend": "pnpm --filter @codeagent/companion-backend build",
+    "build:pc": "pnpm --filter @codeagent/pc-companion build"
+  },
   "engines": {
     "node": ">=22",
     "pnpm": ">=9.0.0"

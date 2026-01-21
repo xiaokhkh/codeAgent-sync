@@ -29,13 +29,13 @@ DBMATE_MIGRATIONS_DIR=db/migrations dbmate up
 2) Run backend:
 
 ```bash
-pnpm --filter @codeagent/companion-backend dev
+pnpm dev:backend
 ```
 
 3) Run companion (flags or env):
 
 ```bash
-pnpm --filter @codeagent/pc-companion dev -- \
+pnpm dev:pc -- \
   --backend http://localhost:8787 \
   --agent-name mac-mini-1 \
   --codex-cmd "codex"
@@ -47,5 +47,5 @@ Or use env defaults:
 cp apps/pc-companion/.env.example apps/pc-companion/.env
 COMPANION_BACKEND=http://localhost:8787 \
 COMPANION_AGENT_NAME=mac-mini-1 \
-pnpm --filter @codeagent/pc-companion dev
+pnpm dev:pc
 ```
