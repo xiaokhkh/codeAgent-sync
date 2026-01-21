@@ -58,7 +58,7 @@ Notes:
 - When no session id is found, it falls back to the host name.
 - Set `COMPANION_CODEX_HOME` to override the `~/.codex` location.
 - If backend auth is enabled, pass `--token` or set `COMPANION_TOKEN`.
-- Use `--skip-git-repo-check` if Codex complains about non-git directories.
+- `--skip-git-repo-check` is enabled by default; use `--require-git-repo` to enforce repo checks.
 - Use `--cwd` to launch Codex inside a specific repo.
 
 4) (Optional) Link global CLI:

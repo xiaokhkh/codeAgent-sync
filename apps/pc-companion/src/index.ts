@@ -43,7 +43,7 @@ const SESSION_SCAN_INTERVAL_MS = 500;
 const stateDir = path.join(os.homedir(), ".companion");
 
 function printUsage(): void {
-  console.log(`agent-sync [--backend <url>] [--agent-name <name>] [--codex-cmd <cmd>] [--token <token>] [--cwd <path>] [--skip-git-repo-check]
+  console.log(`agent-sync [--backend <url>] [--agent-name <name>] [--codex-cmd <cmd>] [--token <token>] [--cwd <path>] [--skip-git-repo-check] [--require-git-repo]
 
 Options:
   --backend       Backend base URL (default: http://localhost:8787)
@@ -51,7 +51,8 @@ Options:
   --codex-cmd     Codex command (default: codex)
   --token         Bearer token for backend
   --cwd           Working directory for Codex (default: current dir)
-  --skip-git-repo-check  Passes through to Codex CLI
+  --skip-git-repo-check  Passes through to Codex CLI (default: enabled)
+  --require-git-repo     Disable skip-git-repo-check
 
 Environment defaults:
   COMPANION_BACKEND
@@ -144,6 +145,7 @@ function parseConfig(): Config {
       token: { type: "string" },
       cwd: { type: "string" },
       "skip-git-repo-check": { type: "boolean" },
+      "require-git-repo": { type: "boolean" },
       help: { type: "boolean" }
     }
   });
@@ -160,9 +162,14 @@ function parseConfig(): Config {
     process.env.COMPANION_CODEX_HOME ?? process.env.CODEX_HOME ?? path.join(os.homedir(), ".codex");
   const codexCwd = values.cwd ?? process.env.COMPANION_CODEX_CWD ?? process.cwd();
   const skipGitRepoCheck =
-    values["skip-git-repo-check"] === true ||
-    process.env.COMPANION_SKIP_GIT_REPO_CHECK === "1" ||
-    process.env.COMPANION_SKIP_GIT_REPO_CHECK === "true";
+    values["skip-git-repo-check"] === true
+      ? true
+      : values["require-git-repo"] === true
+        ? false
+        : process.env.COMPANION_SKIP_GIT_REPO_CHECK === "0" ||
+            process.env.COMPANION_SKIP_GIT_REPO_CHECK === "false"
+          ? false
+          : true;
 
   return {
     backend,
