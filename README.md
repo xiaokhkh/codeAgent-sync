@@ -60,6 +60,7 @@ Notes:
 - `--token` defaults to `dev-token`; override with `COMPANION_TOKEN` when needed.
 - `--skip-git-repo-check` is enabled by default; use `--require-git-repo` to enforce repo checks.
 - Use `--cwd` to launch Codex inside a specific repo.
+- `--codex-cmd` will auto-resolve `codex` from common PATH locations if needed.
 
 4) (Optional) Link global CLI:
 

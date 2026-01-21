@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 import fs from "node:fs/promises";
+import { constants as fsConstants } from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import process from "node:process";
@@ -134,6 +135,43 @@ function splitCommand(input: string): { cmd: string; args: string[] } {
     throw new Error("codex command is required");
   }
   return { cmd, args: parts };
+}
+
+async function isExecutable(filePath: string): Promise<boolean> {
+  try {
+    await fs.access(filePath, fsConstants.X_OK);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+async function resolveExecutable(cmd: string): Promise<string> {
+  if (cmd.includes("/") || cmd.includes("\\")) {
+    return cmd;
+  }
+
+  const pathEnv = process.env.PATH ?? "";
+  const candidates = pathEnv
+    .split(path.delimiter)
+    .filter(Boolean)
+    .map((dir) => path.join(dir, cmd));
+
+  const extraDirs = ["/opt/homebrew/bin", "/usr/local/bin", "/usr/bin"];
+  for (const dir of extraDirs) {
+    const candidate = path.join(dir, cmd);
+    if (!candidates.includes(candidate)) {
+      candidates.push(candidate);
+    }
+  }
+
+  for (const candidate of candidates) {
+    if (await isExecutable(candidate)) {
+      return candidate;
+    }
+  }
+
+  return cmd;
 }
 
 function parseConfig(): Config {
@@ -292,6 +330,10 @@ async function saveLastSeq(agentId: string, seq: number): Promise<void> {
 async function main(): Promise<void> {
   const config = parseConfig();
   const { cmd, args } = splitCommand(config.codexCmd);
+  const resolvedCmd = await resolveExecutable(cmd);
+  if (resolvedCmd !== cmd) {
+    console.log(`Using codex binary: ${resolvedCmd}`);
+  }
   if (config.skipGitRepoCheck && !args.includes("--skip-git-repo-check")) {
     args.push("--skip-git-repo-check");
   }
@@ -352,7 +394,7 @@ async function main(): Promise<void> {
       return;
     }
     try {
-      const ptyProcess = pty.spawn(cmd, args, {
+      const ptyProcess = pty.spawn(resolvedCmd, args, {
         cols: process.stdout.columns ?? 120,
         rows: process.stdout.rows ?? 30,
         cwd: config.codexCwd,
@@ -367,7 +409,10 @@ async function main(): Promise<void> {
       };
     } catch (err) {
       console.error("failed to spawn codex with pty, falling back to stdio", err);
-      const child = spawn(cmd, args, {
+      if (path.basename(resolvedCmd).includes("codex")) {
+        console.error("codex requires a TTY; ensure node-pty can spawn or set --codex-cmd.");
+      }
+      const child = spawn(resolvedCmd, args, {
         cwd: config.codexCwd,
         env: process.env,
         stdio: "pipe"
