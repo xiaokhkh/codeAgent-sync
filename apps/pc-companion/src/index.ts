@@ -14,6 +14,8 @@ type Config = {
   codexCmd: string;
   token?: string;
   codexHome: string;
+  codexCwd: string;
+  skipGitRepoCheck: boolean;
 };
 
 type EventRecord = {
@@ -41,13 +43,15 @@ const SESSION_SCAN_INTERVAL_MS = 500;
 const stateDir = path.join(os.homedir(), ".companion");
 
 function printUsage(): void {
-  console.log(`agent-sync [--backend <url>] [--agent-name <name>] [--codex-cmd <cmd>] [--token <token>]
+  console.log(`agent-sync [--backend <url>] [--agent-name <name>] [--codex-cmd <cmd>] [--token <token>] [--cwd <path>] [--skip-git-repo-check]
 
 Options:
   --backend       Backend base URL (default: http://localhost:8787)
   --agent-name    Agent name to register/use (default: resume/session id or hostname)
   --codex-cmd     Codex command (default: codex)
   --token         Bearer token for backend
+  --cwd           Working directory for Codex (default: current dir)
+  --skip-git-repo-check  Passes through to Codex CLI
 
 Environment defaults:
   COMPANION_BACKEND
@@ -55,6 +59,8 @@ Environment defaults:
   COMPANION_CODEX_CMD
   COMPANION_TOKEN
   COMPANION_CODEX_HOME (or CODEX_HOME)
+  COMPANION_CODEX_CWD
+  COMPANION_SKIP_GIT_REPO_CHECK
 `);
 }
 
@@ -136,6 +142,8 @@ function parseConfig(): Config {
       "agent-name": { type: "string" },
       "codex-cmd": { type: "string", default: "codex" },
       token: { type: "string" },
+      cwd: { type: "string" },
+      "skip-git-repo-check": { type: "boolean" },
       help: { type: "boolean" }
     }
   });
@@ -150,13 +158,20 @@ function parseConfig(): Config {
   const agentNameOverride = values["agent-name"] ?? process.env.COMPANION_AGENT_NAME;
   const codexHome =
     process.env.COMPANION_CODEX_HOME ?? process.env.CODEX_HOME ?? path.join(os.homedir(), ".codex");
+  const codexCwd = values.cwd ?? process.env.COMPANION_CODEX_CWD ?? process.cwd();
+  const skipGitRepoCheck =
+    values["skip-git-repo-check"] === true ||
+    process.env.COMPANION_SKIP_GIT_REPO_CHECK === "1" ||
+    process.env.COMPANION_SKIP_GIT_REPO_CHECK === "true";
 
   return {
     backend,
     codexCmd,
     token: values.token ?? process.env.COMPANION_TOKEN,
     agentNameOverride: agentNameOverride ? agentNameOverride.trim() : undefined,
-    codexHome
+    codexHome,
+    codexCwd,
+    skipGitRepoCheck
   };
 }
 
@@ -177,6 +192,11 @@ async function registerAgent(params: {
 
   if (!res.ok) {
     const text = await res.text();
+    if (res.status === 401) {
+      throw new Error(
+        `Unauthorized. Set --token/COMPANION_TOKEN or remove COMPANION_TOKEN on backend. ${text}`
+      );
+    }
     throw new Error(`register failed: ${res.status} ${text}`);
   }
 
@@ -265,6 +285,9 @@ async function saveLastSeq(agentId: string, seq: number): Promise<void> {
 async function main(): Promise<void> {
   const config = parseConfig();
   const { cmd, args } = splitCommand(config.codexCmd);
+  if (config.skipGitRepoCheck && !args.includes("--skip-git-repo-check")) {
+    args.push("--skip-git-repo-check");
+  }
 
   let agentName = config.agentNameOverride?.trim() ?? deriveAgentNameFromArgs(args);
   let agentId = "";
@@ -325,7 +348,7 @@ async function main(): Promise<void> {
       const ptyProcess = pty.spawn(cmd, args, {
         cols: process.stdout.columns ?? 120,
         rows: process.stdout.rows ?? 30,
-        cwd: process.cwd(),
+        cwd: config.codexCwd,
         env: process.env as Record<string, string>,
         name: "xterm-color"
       });
@@ -338,7 +361,7 @@ async function main(): Promise<void> {
     } catch (err) {
       console.error("failed to spawn codex with pty, falling back to stdio", err);
       const child = spawn(cmd, args, {
-        cwd: process.cwd(),
+        cwd: config.codexCwd,
         env: process.env,
         stdio: "pipe"
       });

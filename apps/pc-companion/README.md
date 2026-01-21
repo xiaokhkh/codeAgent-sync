@@ -29,6 +29,8 @@ pnpm --filter @codeagent/pc-companion dev
 Optional env:
 
 - `COMPANION_CODEX_HOME` overrides the `~/.codex` location used for session discovery.
+- `COMPANION_CODEX_CWD` sets the working directory for Codex.
+- `COMPANION_SKIP_GIT_REPO_CHECK` passes `--skip-git-repo-check` to Codex.
 
 Defaults:
 
@@ -36,6 +38,8 @@ Defaults:
 - `--agent-name` defaults to the Codex resume/session id from `--codex-cmd` if present.
 - If no resume/session id is passed, it scans `~/.codex/sessions` for the newest session id after startup.
 - When no session id is found, it falls back to the host name.
+- Use `--token` or `COMPANION_TOKEN` if backend auth is enabled.
+- Use `--cwd` if you want to launch Codex inside a specific repo.
 
 ## Global CLI (recommended)
 
