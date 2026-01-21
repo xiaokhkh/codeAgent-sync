@@ -1,0 +1,27 @@
+{
+  "name": "@codeagent/companion-backend",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Codex Companion backend (Hono + PostgreSQL + WebSocket).",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "dev": "tsx watch src/index.ts",
+    "build": "tsup src/index.ts --format esm --target node22 --out-dir dist",
+    "start": "node dist/index.js",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@hono/node-server": "^1.13.0",
+    "hono": "^4.6.9",
+    "pg": "^8.13.1",
+    "ws": "^8.18.1"
+  },
+  "devDependencies": {
+    "tsup": "^8.5.0",
+    "tsx": "^4.19.2",
+    "typescript": "^5.9.2"
+  }
+}

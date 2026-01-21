@@ -1,0 +1,28 @@
+{
+  "name": "@codeagent/pc-companion",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "PC Companion for Codex (node-pty + WebSocket).",
+  "engines": {
+    "node": ">=22"
+  },
+  "bin": {
+    "companion": "dist/index.js"
+  },
+  "scripts": {
+    "dev": "tsx src/index.ts",
+    "build": "tsup src/index.ts --format esm --target node22 --out-dir dist --banner:js='#!/usr/bin/env node'",
+    "start": "node dist/index.js",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "node-pty": "^1.0.0",
+    "ws": "^8.18.1"
+  },
+  "devDependencies": {
+    "tsup": "^8.5.0",
+    "tsx": "^4.19.2",
+    "typescript": "^5.9.2"
+  }
+}
