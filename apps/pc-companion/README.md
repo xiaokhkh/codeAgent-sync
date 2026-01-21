@@ -43,6 +43,7 @@ Defaults:
 - By default, `--skip-git-repo-check` is enabled; use `--require-git-repo` to enforce it.
 - `--codex-cmd` will auto-resolve `codex` from common PATH locations if needed.
 - If `node-pty` fails, the CLI will try `script` (PTY) fallback before stdio.
+- Local terminal input/output is mirrored to Codex by default for normal interactive use.
 
 ## Global CLI (recommended)
 

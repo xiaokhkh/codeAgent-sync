@@ -374,6 +374,21 @@ async function main(): Promise<void> {
   let ws: WebSocket | null = null;
   let reconnectDelay = 1000;
   let shuttingDown = false;
+  let localIoAttached = false;
+
+  const attachLocalIo = () => {
+    if (localIoAttached) {
+      return;
+    }
+    localIoAttached = true;
+    if (process.stdin.isTTY) {
+      process.stdin.setRawMode(true);
+    }
+    process.stdin.resume();
+    process.stdin.on("data", (data) => {
+      currentPty?.write(data.toString());
+    });
+  };
 
   const sendEvent = (event: { type: string; sender: string; payload: Record<string, unknown> }) => {
     if (!ws || ws.readyState !== WebSocket.OPEN) {
@@ -463,6 +478,7 @@ async function main(): Promise<void> {
 
     currentPty.onData((data) => {
       buffer += data;
+      process.stdout.write(data);
       if (flushTimer) {
         clearTimeout(flushTimer);
       }
@@ -479,6 +495,7 @@ async function main(): Promise<void> {
   };
 
   spawnCodex();
+  attachLocalIo();
 
   if (!agentName) {
     const sessionsRoot = path.join(config.codexHome, "sessions");

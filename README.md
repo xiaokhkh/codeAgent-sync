@@ -62,6 +62,7 @@ Notes:
 - Use `--cwd` to launch Codex inside a specific repo.
 - `--codex-cmd` will auto-resolve `codex` from common PATH locations if needed.
 - If `node-pty` fails, the CLI will try `script` (PTY) fallback before stdio.
+- Local terminal input/output is mirrored to Codex by default for normal interactive use.
 
 4) (Optional) Link global CLI:
 
