@@ -49,3 +49,10 @@ COMPANION_BACKEND=http://localhost:8787 \
 COMPANION_AGENT_NAME=mac-mini-1 \
 pnpm dev:pc
 ```
+
+4) (Optional) Link global CLI:
+
+```bash
+pnpm link:pc
+companion --backend http://localhost:8787 --agent-name mac-mini-1 --codex-cmd "codex"
+```

@@ -26,6 +26,22 @@ COMPANION_AGENT_NAME=mac-mini-1 \
 pnpm --filter @codeagent/pc-companion dev
 ```
 
+## Global CLI (recommended)
+
+Build and link the CLI once, then run `companion` anywhere:
+
+```bash
+pnpm --filter @codeagent/pc-companion build
+pnpm --filter @codeagent/pc-companion link --global
+companion --backend http://localhost:8787 --agent-name mac-mini-1 --codex-cmd "codex"
+```
+
+Unlink:
+
+```bash
+pnpm --filter @codeagent/pc-companion unlink --global
+```
+
 Build + run:
 
 ```bash

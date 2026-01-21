@@ -6,7 +6,9 @@
     "dev:backend": "pnpm --filter @codeagent/companion-backend dev",
     "dev:pc": "pnpm --filter @codeagent/pc-companion dev --",
     "build:backend": "pnpm --filter @codeagent/companion-backend build",
-    "build:pc": "pnpm --filter @codeagent/pc-companion build"
+    "build:pc": "pnpm --filter @codeagent/pc-companion build",
+    "link:pc": "pnpm --filter @codeagent/pc-companion build && pnpm --filter @codeagent/pc-companion link --global",
+    "unlink:pc": "pnpm --filter @codeagent/pc-companion unlink --global"
   },
   "engines": {
     "node": ">=22",
